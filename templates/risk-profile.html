@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberBridge - Risk Profile Setup</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+
+      <!-- Header -->
+      <div class="header mb-5">
+        <div class="logo">🛡️ CyberBridge</div>
+        <div class="tagline">Enterprise Security Awareness Platform</div>
+      </div>
+
+      <!-- Form Card -->
+      <div class="card shadow-lg">
+        <div class="card-body p-5">
+          
+          <h2 style="color: #667eea; margin-bottom: 10px;">Build Your Risk Profile</h2>
+          <p style="color: #666; margin-bottom: 30px;">Help us understand your business so we can create personalized training for you.</p>
+
+          <!-- Industry Selection -->
+          <div class="mb-5">
+            <h4 style="color: #333; margin-bottom: 20px;">1. What type of business are you?</h4>
+            <div class="risk-profile" id="industry-options">
+              <div class="risk-item" onclick="selectIndustry(this, 'Retail')">
+                <div style="font-size: 30px; margin-bottom: 10px;">🏪</div>
+                <strong>Retail/Service</strong>
+                <p style="color: #666; font-size: 14px;">Customer data, payment processing</p>
+              </div>
+              <div class="risk-item" onclick="selectIndustry(this, 'Healthcare')">
+                <div style="font-size: 30px; margin-bottom: 10px;">🏥</div>
+                <strong>Healthcare</strong>
+                <p style="color: #666; font-size: 14px;">Patient records, HIPAA compliance</p>
+              </div>
+              <div class="risk-item" onclick="selectIndustry(this, 'Professional Services')">
+                <div style="font-size: 30px; margin-bottom: 10px;">💼</div>
+                <strong>Professional Services</strong>
+                <p style="color: #666; font-size: 14px;">Client data, financial information</p>
+              </div>
+              <div class="risk-item" onclick="selectIndustry(this, 'Non-Profit')">
+                <div style="font-size: 30px; margin-bottom: 10px;">❤️</div>
+                <strong>Non-Profit</strong>
+                <p style="color: #666; font-size: 14px;">Donor data, limited IT resources</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Role Selection -->
+          <div class="mb-5">
+            <h4 style="color: #333; margin-bottom: 20px;">2. What's your role?</h4>
+            <div class="risk-profile" id="role-options">
+              <div class="risk-item" onclick="selectRole(this, 'Business Owner')">
+                <div style="font-size: 24px; margin-bottom: 8px;">👔</div>
+                <strong>Business Owner</strong>
+                <p style="color: #666; font-size: 14px;">Decision maker, overall responsibility</p>
+              </div>
+              <div class="risk-item" onclick="selectRole(this, 'Manager')">
+                <div style="font-size: 24px; margin-bottom: 8px;">👥</div>
+                <strong>Manager/Supervisor</strong>
+                <p style="color: #666; font-size: 14px;">Team oversight, process management</p>
+              </div>
+              <div class="risk-item" onclick="selectRole(this, 'Employee')">
+                <div style="font-size: 24px; margin-bottom: 8px;">💻</div>
+                <strong>Employee</strong>
+                <p style="color: #666; font-size: 14px;">Daily operations, customer interaction</p>
+              </div>
+              <div class="risk-item" onclick="selectRole(this, 'Admin')">
+                <div style="font-size: 24px; margin-bottom: 8px;">📋</div>
+                <strong>Office Admin</strong>
+                <p style="color: #666; font-size: 14px;">Data entry, file management</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <div style="text-align: center; margin-top: 40px;">
+            <button class="btn btn-primary btn-lg" onclick="submitProfile()" style="padding: 12px 40px;">
+              Create My Training Plan →
+            </button>
+            <p style="color: #999; font-size: 14px; margin-top: 15px;">
+              <span id="status-message"></span>
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+let selectedIndustry = null;
+let selectedRole = null;
+
+function selectIndustry(element, industry) {
+  // Remove selection from all industry items
+  const siblings = document.getElementById("industry-options").querySelectorAll(".risk-item");
+  siblings.forEach(s => s.classList.remove("selected"));
+  
+  // Select this item
+  element.classList.add("selected");
+  selectedIndustry = industry;
+}
+
+function selectRole(element, role) {
+  // Remove selection from all role items
+  const siblings = document.getElementById("role-options").querySelectorAll(".risk-item");
+  siblings.forEach(s => s.classList.remove("selected"));
+  
+  // Select this item
+  element.classList.add("selected");
+  selectedRole = role;
+}
+
+async function submitProfile() {
+  if (!selectedIndustry || !selectedRole) {
+    document.getElementById("status-message").textContent = "❌ Please select both industry and role";
+    return;
+  }
+
+  document.getElementById("status-message").textContent = "⏳ Creating profile...";
+
+  try {
+    // Register user with selected profile
+    const response = await fetch("/api/user/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: `user-${Date.now()}@cyberbridge.local`,
+        organization: "SyncFlow Solutions",
+        industry: selectedIndustry,
+        role: selectedRole
+      })
+    });
+
+    const data = await response.json();
+    
+    if (response.ok) {
+      document.getElementById("status-message").textContent = "✅ Profile created! Redirecting...";
+      
+      // Store user ID and redirect to dashboard
+      localStorage.setItem("user_id", data.user_id);
+      
+      // Redirect after 1 second
+      setTimeout(() => {
+        window.location.href = "/dashboard?user_id=" + data.user_id;
+      }, 1000);
+    } else {
+      document.getElementById("status-message").textContent = "❌ Error creating profile";
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    document.getElementById("status-message").textContent = "❌ Error: " + error.message;
+  }
+}
+</script>
+
+</body>
+</html>
