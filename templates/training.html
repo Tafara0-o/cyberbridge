@@ -2,17 +2,240 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>CyberBridge Training Module</title>
+  <title>Training Module - CyberBridge</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .training-header {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 40px;
+      border-radius: 15px;
+      margin-bottom: 30px;
+    }
+    .content-box {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .key-concept {
+      padding: 15px;
+      background: #f8f9ff;
+      border-left: 4px solid #667eea;
+      margin-bottom: 15px;
+      border-radius: 6px;
+    }
+    .quiz-option {
+      padding: 12px;
+      margin: 8px 0;
+      background: #f5f5f5;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .quiz-option:hover { background: #e8e9ff; border-color: #667eea; }
+    .quiz-option.selected { background: #667eea; color: white; border-color: #667eea; }
+    .progress-custom {
+      height: 30px;
+      background: #e0e0e0;
+      border-radius: 15px;
+      overflow: hidden;
+      margin: 20px 0;
+    }
+    .progress-fill-custom {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      transition: width 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
 
 <div class="container py-4">
-  <h1>Training Module (Coming Day 5)</h1>
-  <p>This page will render training content and quizzes.</p>
-  <a href="/" class="btn btn-primary">Back to Dashboard</a>
+  <div class="training-header">
+    <h1 id="module-title">Loading...</h1>
+    <p id="module-intro"></p>
+    <div class="progress-custom">
+      <div class="progress-fill-custom" id="progress-fill" style="width: 20%;">
+        <span id="progress-text">20%</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="content-area"></div>
+
+  <div id="quiz-section" class="content-box" style="display: none;">
+    <h3 style="color: #667eea;">📝 Knowledge Check</h3>
+    <div id="quiz-questions"></div>
+    <button class="btn btn-primary btn-lg mt-4 w-100" onclick="submitQuiz()">Submit Quiz</button>
+  </div>
+
+  <div style="margin-top: 30px; text-align: center;">
+    <a href="/dashboard" class="btn btn-outline-secondary">← Back to Dashboard</a>
+  </div>
 </div>
+
+<script>
+const USER_ID = new URLSearchParams(window.location.search).get("user_id") || localStorage.getItem("user_id") || 1;
+const MODULE_NAME = new URLSearchParams(window.location.search).get("module") || "Phishing Awareness";
+
+let currentSessionId = null;
+let currentContent = null;
+let quizAnswers = {};
+
+async function loadTrainingModule() {
+  try {
+    const res = await fetch("/api/training/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: USER_ID, module_name: MODULE_NAME })
+    });
+
+    const data = await res.json();
+    currentSessionId = data.session_id;
+    currentContent = typeof data.content === "string" ? JSON.parse(data.content) : data.content;
+
+    document.getElementById("module-title").textContent = currentContent.title;
+    document.getElementById("module-intro").textContent = currentContent.introduction;
+
+    renderContent(currentContent);
+    renderQuiz(currentContent.quiz || []);
+    updateProgress(60);
+  } catch (error) {
+    document.getElementById("content-area").innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+  }
+}
+
+function renderContent(content) {
+  let html = "";
+
+  if (content.key_concepts?.length) {
+    html += '<div class="content-box"><h4 style="color: #667eea;">🎯 Key Concepts</h4>';
+    content.key_concepts.forEach(c => {
+      html += `<div class="key-concept"><strong>${c.concept}</strong><p>${c.explanation}</p></div>`;
+    });
+    html += '</div>';
+  }
+
+  if (content.real_world_examples?.length) {
+    html += '<div class="content-box"><h4 style="color: #667eea;">📌 Real-World Examples</h4>';
+    content.real_world_examples.forEach(ex => html += `<p>📍 ${ex}</p>`);
+    html += '</div>';
+  }
+
+  if (content.best_practices?.length) {
+    html += '<div class="content-box"><h4 style="color: #667eea;">✅ Best Practices</h4>';
+    content.best_practices.forEach(bp => html += `<p>✓ ${bp}</p>`);
+    html += '</div>';
+  }
+
+  document.getElementById("content-area").innerHTML = html;
+}
+
+function renderQuiz(quiz) {
+  if (!quiz.length) return;
+
+  let html = "";
+  quiz.forEach((q, i) => {
+    html += `<div style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+      <h5><strong>Question ${i + 1}</strong></h5>
+      <p>${q.question}</p>
+      <div id="options-${i}">
+        ${q.options.map(opt => `<div class="quiz-option" onclick="selectAnswer(${i}, '${opt}')">${opt}</div>`).join("")}
+      </div>
+    </div>`;
+  });
+
+  document.getElementById("quiz-questions").innerHTML = html;
+  document.getElementById("quiz-section").style.display = "block";
+}
+
+function selectAnswer(qIndex, answer) {
+  quizAnswers[qIndex] = answer;
+  document.querySelectorAll(`#options-${qIndex} .quiz-option`).forEach(el => {
+    el.classList.remove("selected");
+    if (el.textContent === answer) el.classList.add("selected");
+  });
+}
+
+async function submitQuiz() {
+  try {
+    // Calculate score
+    const quiz = currentContent.quiz || [];
+    let correctCount = 0;
+
+    Object.keys(quizAnswers).forEach(idx => {
+      if (quizAnswers[idx] === quiz[idx].correct) {
+        correctCount++;
+      }
+    });
+
+    const score = Math.round((correctCount / quiz.length) * 100);
+
+    console.log(`📊 Quiz score: ${score}% (${correctCount}/${quiz.length})`);
+
+    // Submit score to backend
+    const completeRes = await fetch("/api/training/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: currentSessionId,
+        quiz_score: score
+      })
+    });
+
+    if (!completeRes.ok) {
+      throw new Error("Failed to save quiz score");
+    }
+
+    // Show result
+    updateProgress(100);
+    document.getElementById("quiz-section").style.display = "none";
+
+    const resultHtml = `
+      <div class="content-section" style="text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <h2 style="color: white; margin-bottom: 20px;">🎉 Module Complete!</h2>
+        <div style="font-size: 48px; font-weight: bold; margin: 20px 0;">${score}%</div>
+        <p style="font-size: 18px; margin-bottom: 20px;">
+          ${score >= 80 ? "Excellent work! You've mastered this topic." : 
+            score >= 60 ? "Good job! Review the material and retake if needed." :
+            "Keep practicing! Consider reviewing the material again."}
+        </p>
+        <p style="margin-bottom: 20px; opacity: 0.9;">Your score has been saved to your profile.</p>
+        <button class="btn btn-light" onclick="returnToDashboard()" style="margin-top: 20px; padding: 12px 30px;">
+          Return to Dashboard
+        </button>
+      </div>
+    `;
+
+    document.getElementById("content-area").innerHTML += resultHtml;
+
+  } catch (error) {
+    console.error("Error submitting quiz:", error);
+    alert("Error saving quiz score: " + error.message);
+  }
+}
+
+function returnToDashboard() {
+  // Redirect back to dashboard with updated user_id
+  window.location.href = `/dashboard?user_id=${USER_ID}`;
+}
+
+function updateProgress(percent) {
+  document.getElementById("progress-fill").style.width = percent + "%";
+  document.getElementById("progress-text").textContent = percent + "%";
+}
+
+window.addEventListener("load", loadTrainingModule);
+</script>
 
 </body>
 </html>
