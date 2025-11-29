@@ -12,6 +12,18 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
+# List available models (for debugging)
+print("\n" + "="*60)
+print("🔍 AVAILABLE GEMINI MODELS")
+print("="*60)
+try:
+    for model in genai.list_models():
+        if 'generateContent' in model.supported_generation_methods:
+            print(f"✓ {model.name}")
+except Exception as e:
+    print(f"❌ Error listing models: {e}")
+print("="*60 + "\n")
+
 def create_training_prompt(topic, user_profile):
     """Create a prompt for Gemini to generate training content"""
     
@@ -71,31 +83,54 @@ def generate_training_module(topic, user_profile):
     prompt = create_training_prompt(topic, user_profile)
     
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.5-flash")
         
-        print(f"🤖 Generating AI content for: {topic}")
-        print(f"   Role: {user_profile['role']}")
-        print(f"   Industry: {user_profile['industry']}")
+        print(f"\n{'='*60}")
+        print(f"🤖 GENERATING AI CONTENT")
+        print(f"{'='*60}")
+        print(f"Topic: {topic}")
+        print(f"Role: {user_profile['role']}")
+        print(f"Industry: {user_profile['industry']}")
+        print(f"Calling Gemini API...")
         
         response = model.generate_content(prompt)
         text = response.text.strip()
         
+        print(f"✓ API Response received ({len(text)} chars)")
+        
         # Remove markdown code blocks if present
         if text.startswith("```"):
-            text = text.replace("```json", "").replace("```", "")
+            print(f"  Removing markdown code blocks...")
+            text = text.replace("```json", "").replace("```", "").strip()
         
         # Try to parse JSON
+        print(f"  Parsing JSON...")
         content = json.loads(text)
         
-        print(f"✅ Generated successfully: {content.get('title', topic)}")
+        print(f"✅ SUCCESS: Generated '{content.get('title', topic)}'")
+        print(f"   - Key concepts: {len(content.get('key_concepts', []))} items")
+        print(f"   - Examples: {len(content.get('real_world_examples', []))} items")
+        print(f"   - Best practices: {len(content.get('best_practices', []))} items")
+        print(f"   - Quiz questions: {len(content.get('quiz', []))} questions")
+        print(f"{'='*60}\n")
         return content
         
     except json.JSONDecodeError as e:
-        print(f"❌ JSON parsing error: {e}")
-        print(f"   Raw response: {text[:200]}...")
+        print(f"\n{'='*60}")
+        print(f"❌ JSON PARSING ERROR")
+        print(f"{'='*60}")
+        print(f"Error: {e}")
+        print(f"Raw response (first 300 chars):")
+        print(f"{text[:300]}")
+        print(f"{'='*60}\n")
         return None
     except Exception as e:
-        print(f"❌ Gemini API error: {e}")
+        print(f"\n{'='*60}")
+        print(f"❌ GEMINI API ERROR")
+        print(f"{'='*60}")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {e}")
+        print(f"{'='*60}\n")
         return None
 
 def get_fallback_content(topic):

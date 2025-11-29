@@ -155,8 +155,17 @@ def start_training():
     user_id = data["user_id"]
     module_name = data["module_name"]
 
+    print(f"\n{'='*70}")
+    print(f"📚 STARTING TRAINING SESSION")
+    print(f"{'='*70}")
+    print(f"Module: {module_name}")
+    print(f"User ID: {user_id}")
+
     # Get user info for personalization
     user = User.query.get_or_404(user_id)
+    print(f"User: {user.email}")
+    print(f"Role: {user.role}")
+    print(f"Industry: {user.industry}")
 
     user_profile = {
         "role": user.role or "Employee",
@@ -165,13 +174,18 @@ def start_training():
     }
 
     # Try to generate AI content
-    print(f"\n📚 Starting training: {module_name} for {user.email}")
+    print(f"\n→ Attempting to generate AI content...")
     content = generate_training_module(module_name, user_profile)
 
     # Use fallback if AI fails
     if content is None:
-        print(f"⚠️ Using fallback content for {module_name}")
+        print(f"\n⚠️  AI generation failed, using fallback content for: {module_name}")
         content = get_fallback_content(module_name)
+        if content:
+            print(f"✓ Fallback content loaded successfully")
+        else:
+            print(f"❌ ERROR: Fallback content not available!")
+            return jsonify({"error": "No training content available"}), 500
 
     # Create training session
     session = TrainingSession(
@@ -184,7 +198,11 @@ def start_training():
     db.session.add(session)
     db.session.commit()
 
-    print(f"✅ Training session created: {session.id}")
+    print(f"\n✅ Training session created successfully")
+    print(f"Session ID: {session.id}")
+    print(f"Content title: {content.get('title', module_name)}")
+    print(f"Quiz questions: {len(content.get('quiz', []))}")
+    print(f"{'='*70}\n")
 
     return jsonify({
         "session_id": session.id,
